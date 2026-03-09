@@ -3,7 +3,7 @@ import pathlib
 from datetime import datetime
 import os
 
-SCHEMA="{{'scraped_quotes' if params.environment == 'production' else 'dev_joel'}}"
+SCHEMA="{{ 'scraped_quotes' if params.environment == 'production' else 'dev_joel'}}"
 DAG_ROOT=pathlib.Path(__file__).parent
 BUCKET="{{ 'l3-external-storage-753900908173' if params.environment == 'production' else 'l3-external-storage-753900908173-dev' }}"
 S3_KEYS={
@@ -19,7 +19,7 @@ S3_KEYS={
             os.getenv('environment', 'production'),
             dtype='string',
             enum=['development', 'production']
-            )
+            ),
         }
     )
 def quotes_scraper():
@@ -31,8 +31,6 @@ def quotes_scraper():
         def quotes(filepath, extract_key, BUCKET):
             from airflow.providers.amazon.aws.hooks.s3 import S3Hook
             from bs4 import BeautifulSoup
-
-            print('BUCKET:', BUCKET)
             
             # Collect quotes
             html = pathlib.Path(filepath).read_text()
