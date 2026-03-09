@@ -1,10 +1,11 @@
 from airflow.sdk import dag, task, task_group, Param
 import pathlib
 from datetime import datetime
+import os
 
-SCHEMA="{{'scraped_quotes' if params.environment == 'development' else 'dev_joel'}}"
+SCHEMA="{{'scraped_quotes' if params.environment == 'production' else 'dev_joel'}}"
 DAG_ROOT=pathlib.Path(__file__).parent
-BUCKET="{{ 'l3-external-storage-753900908173' if params.environment == 'development' else 'l3-external-storage-753900908173-dev' }}"
+BUCKET="{{ 'l3-external-storage-753900908173' if params.environment == 'production' else 'l3-external-storage-753900908173-dev' }}"
 S3_KEYS={
     'extract': '{{ dag.dag_id }}/extract/{{ ds }}'
     }
@@ -14,8 +15,12 @@ S3_KEYS={
     start_date=datetime(2025, 3, 5),
     end_date=datetime(2026, 3, 13),
     params={
-        'environment': Param('development', dtype='string', enum=['developmenr', 'environment'])
-    }
+        'environment': Param(
+            os.getenv('environment', 'production'),
+            dtype='string',
+            enum=['development', 'production']
+            )
+        }
     )
 def quotes_scraper():
 
@@ -26,6 +31,8 @@ def quotes_scraper():
         def quotes(filepath, extract_key, BUCKET):
             from airflow.providers.amazon.aws.hooks.s3 import S3Hook
             from bs4 import BeautifulSoup
+
+            print('BUCKET:', BUCKET)
             
             # Collect quotes
             html = pathlib.Path(filepath).read_text()
@@ -85,10 +92,10 @@ def quotes_scraper():
         filepath = (DAG_ROOT / 'quotes' / 'quotes-{{ ds }}.html').as_posix()
 
         # Call the `quotes` task
-        author_links = quotes(filepath, S3_KEYS['extract'])
+        author_links = quotes(filepath, S3_KEYS['extract'], BUCKET)
 
         # Call the `authors` task
-        authors(author_links, S3_KEYS['extract'])
+        authors(author_links, S3_KEYS['extract'], BUCKET)
 
     @task_group
     def transform():
